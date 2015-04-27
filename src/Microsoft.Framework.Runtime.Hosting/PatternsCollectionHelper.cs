@@ -5,53 +5,45 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Newtonsoft.Json.Linq;
+using Microsoft.Framework.Runtime.Json;
 
 namespace Microsoft.Framework.Runtime
 {
-    public static class PatternsCollectionHelper
+    internal static class PatternsCollectionHelper
     {
         private static readonly char[] PatternSeparator = new[] { ';' };
 
-        public static IEnumerable<string> GetPatternsCollection(JObject rawProject, string projectDirectory, string projectFilePath, string propertyName, IEnumerable<string> defaultPatterns = null)
-        {
-            var token = rawProject[propertyName];
-
-            return GetPatternsCollection(token, projectDirectory, projectFilePath, defaultPatterns);
-        }
-
-        public static IEnumerable<string> GetPatternsCollection(JToken token, string projectDirectory, string projectFilePath, IEnumerable<string> defaultPatterns = null)
+        public static IEnumerable<string> GetPatternsCollection(JsonObject rawProject, string projectDirectory, string projectFilePath, string propertyName, IEnumerable<string> defaultPatterns = null)
         {
             defaultPatterns = defaultPatterns ?? Enumerable.Empty<string>();
 
-            if (token == null)
-            {
-                return CreateCollection(projectDirectory, defaultPatterns.ToArray());
-            }
-
             try
             {
-                if (token.Type == JTokenType.Null)
+                if (!rawProject.Keys.Contains(propertyName))
                 {
-                    return CreateCollection(projectDirectory);
+                    return CreateCollection(projectDirectory, defaultPatterns.ToArray());
                 }
 
-                if (token.Type == JTokenType.String)
+                string valueInString = rawProject.ValueAsString(propertyName);
+                if (valueInString != null)
                 {
-                    return CreateCollection(projectDirectory, token.Value<string>());
+                    return CreateCollection(projectDirectory, valueInString);
                 }
 
-                if (token.Type == JTokenType.Array)
+                string[] valuesInArray = rawProject.ValueAsArray<string>(propertyName);
+                if (valuesInArray != null)
                 {
-                    return CreateCollection(projectDirectory, token.ValueAsArray<string>());
+                    return CreateCollection(projectDirectory, valuesInArray);
                 }
             }
-            catch (InvalidOperationException ex)
+            catch (Exception ex)
             {
-                throw FileFormatException.Create(ex, token, projectFilePath);
+                // TODO: add line information
+                throw new FileFormatException(ex.Message, ex);
             }
 
-            throw FileFormatException.Create("Value must be either string or array.", token, projectFilePath);
+            // TODO: add line information
+            throw new FileFormatException("Value must be either string or array.");
         }
 
         private static IEnumerable<string> CreateCollection(string projectDirectory, params string[] patternsStrings)

@@ -4,58 +4,48 @@
 
 using System.Collections.Generic;
 using System.IO;
-using Newtonsoft.Json.Linq;
+using Microsoft.Framework.Runtime.Json;
 
 namespace Microsoft.Framework.Runtime
 {
     internal static class NamedResourceReader
     {
-        public static IDictionary<string, string> ReadNamedResources(JObject rawProject, string projectFilePath)
+        public static IDictionary<string, string> ReadNamedResources(JsonObject rawProject, string projectFilePath)
         {
-            var namedResourceToken = rawProject["namedResource"];
-            if (namedResourceToken == null)
+            if (!rawProject.Keys.Contains("namedResource"))
             {
                 return new Dictionary<string, string>();
             }
 
-            if (namedResourceToken.Type != JTokenType.Object)
+            var namedResourceToken = rawProject.ValueAsJsonObject("namedResource");
+            if (namedResourceToken == null)
             {
-                throw FileFormatException.Create("Value must be object.", namedResourceToken, projectFilePath);
+                throw new FileFormatException(string.Format("Value must of namedResource be object."));
             }
 
             var namedResources = new Dictionary<string, string>();
 
-            foreach (var namedResource in namedResourceToken)
+            foreach (var namedResourceKey in namedResourceToken.Keys)
             {
-                if (namedResource.Type != JTokenType.Property)
+                var resourcePath = namedResourceToken.ValueAsString(namedResourceKey);
+                if (resourcePath == null)
                 {
-                    throw FileFormatException.Create("Value must be property.", namedResource, projectFilePath);
+                    throw new FileFormatException("Value must be string.");
                 }
 
-                var property = namedResource as JProperty;
-                if (property.Value.Type != JTokenType.String)
-                {
-                    throw FileFormatException.Create("Value must be string.", property.Value, projectFilePath);
-                }
-
-                var resourcePath = property.Value.ToString();
                 if (resourcePath.Contains("*"))
                 {
-                    throw FileFormatException.Create("Value cannot contain wildcards.", property.Value, projectFilePath);
+                    throw new FileFormatException("Value cannot contain wildcards.");
                 }
 
                 var resourceFileFullPath = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(projectFilePath), resourcePath));
 
-                if (namedResources.ContainsKey(property.Name))
+                if (namedResources.ContainsKey(namedResourceKey))
                 {
-                    throw FileFormatException.Create(
-                        string.Format("The named resource {0} already exists.", property.Name),
-                        property,
-                        projectFilePath);
+                    throw new FileFormatException(string.Format("The named resource {0} already exists.", namedResourceKey));
                 }
-                namedResources.Add(
-                    property.Name,
-                    resourceFileFullPath);
+
+                namedResources.Add(namedResourceKey, resourceFileFullPath);
             }
 
             return namedResources;
