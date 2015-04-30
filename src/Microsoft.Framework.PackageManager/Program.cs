@@ -481,9 +481,9 @@ namespace Microsoft.Framework.PackageManager
 
             app.Command("wrap", c =>
             {
-                c.Description = "Wrap a csproj/dll into a project.json, which can be referenced by project.json files";
+                c.Description = "Wrap a csproj/assembly into a project.json, which can be referenced by project.json files";
 
-                var argPath = c.Argument("[path]", "Path to csproj/dll to be wrapped");
+                var argPath = c.Argument("[path]", "Path to csproj/assembly to be wrapped");
                 var optConfiguration = c.Option("--configuration <CONFIGURATION>",
                     "Configuration of wrapped project, default is 'debug'", CommandOptionType.SingleValue);
                 var optMsBuildPath = c.Option("--msbuild <PATH>",
